@@ -11,13 +11,14 @@
   - [Comparison of different versions of the same planners.](#regression)
 - [Detailed information about the database.](#databaseInfo)
 - [Changing the database used.](#changeDatabase)
-- [Installing Planner Arena locally](#installation)
+- [Running Planner Arena locally](#local)
+- [Advanced: Creating your own benchmark databases outside of OMPL](#databaseCreation)
 
 ## <a name="about"></a>About Planner Arena
 
 **Planner Arena** is a site for benchmarking sampling-based planners. The site is set up to show the performance of implementations of various sampling-based planning algorithms in the [Open Motion Planning Library (OMPL)](https://ompl.kavrakilab.org). We have chosen a few benchmark problems that highlight some interesting aspects of motion planning.
 
-**Planner Arena** is also a site you can use to analyze your own motion planning benchmark data. The easiest way to do so is to use either the `ompl_benchmark` program in OMPL.app or the [`Benchmark`](\ref ompl::tools::Benchmark) class in your own code. See the [relevant documentation](https://ompl.kavrakilab.org/benchmark.html) on the OMPL site. The log files that are produced by the OMPL benchmarking facilities get turned into a SQLite database using a script. The database schema is described on this page as well. This means that you could produce benchmark databases with some other software for entirely different planning algorithms (or different implementations of algorithms in OMPL) and use Planner Arena to visualize the data. Much of the Planner Arena user interface is dynamically constructed based on the contents of the benchmark database. In particular, if you store different types of performance measures in your tables, Planner Arena will still be able to plot the results.
+**Planner Arena** is also a site you can use to analyze your own motion planning benchmark data. The easiest way to do so is to use either the `ompl_benchmark` program in OMPL.app or the [`Benchmark`](https://ompl.kavrakilab.org/classompl_1_1tools_1_1Benchmark.html) class in your own code. See the [relevant documentation](https://ompl.kavrakilab.org/benchmark.html) on the OMPL site. The log files that are produced by the OMPL benchmarking facilities get turned into a SQLite database using a script. The database schema is described on this page as well. This means that you could produce benchmark databases with some other software for entirely different planning algorithms (or different implementations of algorithms in OMPL) and use Planner Arena to visualize the data. Much of the Planner Arena user interface is dynamically constructed based on the contents of the benchmark database. In particular, if you store different types of performance measures in your tables, Planner Arena will still be able to plot the results.
 
 ## <a name="cite"></a>How to cite Planner Arena
 
@@ -122,6 +123,146 @@ On the “Database info” page there are two tabs. Both show information for th
 
 Finally, it is possible to upload your own database of benchmark data. We have limited the maximum database size to 30MB. If your database is larger, you can [run Planner Arena locally](https://ompl.kavrakilab.org/plannerarena.html). The “Change database” page allows you to switch back to the default database after you have uploaded your own database. You can also download the default database. This might be useful if you want to extend the database with your own benchmarking results and compare our default benchmark data with your own results.
 
-## <a name="installation"></a>Installing Planner Arena locally
+## <a name="local"></a>Running Planner Arena locally
 
-See [this page](https://ompl.kavrakilab.org/plannerarena.html) for detailed instructions on how to run Planner Arena on your own computer.
+### Docker
+
+If you are familiar with Docker, then the easiest way to run Planner Arena locally is to run the same docker container we use for our web server:
+
+    docker pull kavrakilab/plannerarena:latest
+    docker run --rm -p 80:80 plannerarena:latest
+
+Direct your browser to http://0.0.0.0:80 to see Planner Arena. There are a couple environment variables to configure Planner Arena by running `docker run -e VARIABLE=VALUE ...`:
+
+- `DATABASE` (default value: `/benchmark.db`): The file name of the default benchmark database (inside the docker container). By mounting a host file inside the container, you can make a local benchmark database the default. For example:
+
+      docker run --rm -p 80:80 --mount type=bind,source=${HOME}/mybenchmark.db,target=/tmp/benchmark.db,readonly -e DATABASE=/tmp/benchmark.db plannerarena:latest
+
+- `MAX_DB_SIZE` (default value: `50000000`): The maximum size in bytes of the database that can be uploaded to the server.
+- `HOSTNAME` (default value: `0.0.0.0`): The IP address of the host.
+
+If you have cloned this repository and would like to make a custom docker image, type the following commands in the top-level directory of this repository:
+
+    R -e 'devtools::build(path=".")'
+    docker build -t plannerarena:latest .
+
+### R
+
+If you are somewhat familiar with R, you can install Planner Arena like so:
+
+    R -e 'install.packages("remotes", repos="https://cran.r-project.org"); remotes::install_github("ompl/plannerarena")'
+
+If installation was successful, you can run Planner Arena like so:
+
+    R -e "plannerarena::run_app()"
+
+This slightly more complex version of starting Planner Arena enables you to pass in arguments via environment variables as is done for the Docker version:
+
+    R -e "options('shiny.port'=80,'shiny.host'='${HOSTNAME}','shiny.maxRequestSize'=${MAX_DB_SIZE},'plannerarena.default_database'='${DATABASE}');library(plannerarena);plannerarena::run_app()"
+
+## <a name="databaseCreation"></a>Advanced: Creating your own benchmark databases outside of OMPL
+
+In some cases you may want to generate Planner Arena databases with your own code. The [MoveIt project](https://moveit.ros.org), for example, uses OMPL, but replicates much of the benchmarking infrastructure to produce its own benchmark log files that can be turned into Planner Arena benchmark databases. In your own code, you have the choice to produce log files that can be read by [`ompl_benchmark_statistics.py`](https://github.com/ompl/ompl/blob/main/scripts/ompl_benchmark_statistics.py) to produce a benchmark database or write code to produce a database directly. Below, we will describe the log file format that can be parsed by `ompl_benchmark_statistics.py` and the database format. Understanding the database format is also helpful if you are interested in making your own custom visualizations (with or without Planner Arena).
+
+### The benchmark logfile format {#benchmark_logfile_format}
+
+The benchmark log files have a pretty simple structure. Below we have included their syntax in [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/Extended_Backus–Naur_Form). This may be useful for someone interested in extending other planning libraries with similar logging capabilities (which would be helpful in a direct comparison of the performance of planning libraries).
+
+~~~{.bnf}
+logfile               ::= preamble planners_data;
+preamble              ::= [version] experiment [exp_property_count exp_properties] hostname date setup [cpuinfo]
+                          random_seed time_limit memory_limit [num_runs]
+                          total_time [num_enums enums] num_planners;
+version               ::= library_name " version " version_number EOL;
+experiment            ::= "Experiment " experiment_name EOL;
+exp_property_count    ::= int " experiment properties" EOL;
+exp_properties        ::= exp_property | exp_property exp_properties;
+exp_property          ::= name property_type "=" num EOL;
+hostname              ::= "Running on " host EOL;
+date                  ::= "Starting at " date_string EOL;
+setup                 ::= multi_line_string;
+cpuinfo               ::= multi_line_string;
+multi_line_string     ::= "<<<|" EOL strings "|>>>" EOL;
+strings               ::= string EOL | string EOL strings
+random_seed           ::= int " is the random seed" EOL;
+time_limit            ::= float " seconds per run" EOL;
+memory_limit          ::= float " MB per run" EOL;
+num_runs              ::= int " runs per planner" EOL;
+total_time            ::= float " seconds spent to collect the data" EOL;
+num_enums             ::= num " enum type" EOL;
+enums                 ::= enum | enum enums;
+enum                  ::= enum_name "|" enum_values EOL;
+enum_values           ::= enum_value | enum_value "|" enum_values;
+num_planners          ::= int " planners" EOL;
+planners_data         ::= planner_data | planner_data planners_data;
+planner_data          ::= planner_name EOL int " common properties" EOL
+                          planner_properties int " properties for each run" EOL
+                          run_properties int " runs" EOL run_measurements
+                          [int "progress properties for each run" EOL
+                          progress_properties int " runs" EOL
+                          progress_measurements] "." EOL;
+planner_properties    ::= "" | planner_property planner_properties;
+planner_property      ::= property_name " = " property_value EOL;
+run_properties        ::= property | property run_properties;
+progress_properties   ::= property | property progress_properties;
+property              ::= property_name " " property_type EOL;
+property_type         ::= "BOOLEAN" | "INTEGER" | "REAL";
+run_measurements      ::= run_measurement | run_measurement run_measurements;
+run_measurement       ::= data "; " | data "; " run_measurement;
+data                  ::= num | "inf" | "nan" | "";
+progress_measurements ::= progress_measurement EOL
+                         | progress_measurement EOL progress_measurements;
+progress_measurement  ::= prog_run_data | prog_run_data ";" progress_measurement;
+prog_run_data         ::= data "," | data "," prog_run_data;
+~~~
+
+Here, `EOL` denotes a newline character, `int` denotes an integer, `float` denotes a floating point number, `num` denotes an integer or float value and undefined symbols correspond to strings without whitespace characters. The exception is `property_name` which is a string that _can_ have whitespace characters. It is also assumed that if the log file says there is data for _k_ planners that that really is the case (likewise for the number of run measurements and the optional progress measurements).
+
+### The benchmark database schema
+
+<div class="col-sm-4 pull-right">
+  <img src="www/benchmarkdb_schema.png" width="100%">
+  <br/>
+  <b>The benchmark database schema</b>
+</div>
+The ompl_benchmark_statistics.py script can produce a series of plots from a database of benchmark results, but in many cases you may want to produce your own custom plots. For this it useful to understand the schema used for the database. There are five tables in a benchmark database:
+
+- **experiments**. This table contains the following information:
+  - *id:* an ID used in the `runs` table to denote that a run was part of a given experiment.
+  - *name:* name of the experiment.
+  - *totaltime:* total duration of the experiment in seconds.
+  - *timelimit:* time limit for each individual run in seconds.
+  - *memorylimit:* memory limit for each individual run in MB.
+  - *runcount:* the number of times each planner configuration was run.
+  - *version:* the version of OMPL that was used.
+  - *hostname:* the host name of the machine on which the experiment was performed.
+  - *cpuinfo:* CPU information about the machine on which the experiment was performed.
+  - *date:* the date on which the experiment was performed.
+  - *seed:* the random seed used.
+  - *setup:* a string containing a “print-out” of all the settings of the SimpleSetup object used during benchmarking.
+  
+  Any additional columns are assumed to be numeric values corresponding to experimental hyperparameters. This can be useful to show planner performance as a function of, e.g., number of revolute joints for a parametric robot arm or number of obstacles in parametric environment. Planner Arena will show a selection widget for each hyperparameter. The user can choose to (1) aggregate planner runs over all hyperparameter values, (2) show performance separated out by hyperparameter value, or (3) show performance for one selected hyperpameter value.
+- **plannerConfigs**. There are a number of planner types (such as PRM and RRT), but each planner can typically be configured with a number of parameters. A planner configuration refers to a planner type with specific parameter settings. The `plannerConfigs` table contains the following information:
+  - *id:* an ID used in the `runs` table to denote that a given planner configuration was used for a run.
+  - *name:* the name of the configuration. This can be just the planner name, but when using different parameter settings of the same planner it is essential to use more specific names.
+  - *settings:* a string containing a “print-out” of all the settings of the planner.
+- **enums**: This table contains description of enumerate types that are measured during benchmarking. By default there is only one such such type defined: ompl::base::PlannerStatus. The table contains the following information:
+  - *name:* name of the enumerate type (e.g., “status”).
+  - *value:* numerical value used in the runs
+  - *description:* text description of each value (e.g. “Exact solution,” “Approximate solution,” “Timeout,” etc.)
+- **runs**. The `runs` table contains information for every run in every experiment. Each run is identified by the following fields:
+  - *id:* ID of the run
+  - *experimentid:* ID of the experiment to which this run belonged.
+  - *plannerid:* ID of the planner configuration used for this run.
+  
+  In addition, there will be many benchmark statistics. None are *required*, but the OMPL planners all report the properties described above such as time, memory, solution length, simplification time, etc. It is possible that not all planners report the same properties. In that case, planners that do not report such properties will have NULL values in the corresponding fields. Users can programmatically define new properties that can get logged for each run in OMPL. 
+- **progress**. Some planners (such as RRT*) can also periodically report properties *during* a run. This can be useful to analyze the convergence or growth rate. The `progress` table contains the following information:
+  - *runid:* the ID of the run for which progress data was tracked.
+  - *time:* the time (in sec.) at which the property was measured.
+  .
+  The actual properties stored depend on the planner, but in the case of RRT* it stores the following additional fields:
+  - *iterations:* the number of iterations.
+  - *collision_checks:* the number of collision checks (or, more precisely, the number state validator calls).
+  - *best_cost:* the cost of the best solution found so far.
+  
+  As with run properties, users can programmatically define their own progress properties that will be logged during each run of a planner.
