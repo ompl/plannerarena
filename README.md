@@ -9,13 +9,13 @@
 If you are familiar with Docker, then the easiest way to run Planner Arena locally is to run the same docker container we use for our web server:
 
     docker pull kavrakilab/plannerarena:latest
-    docker run --rm -p 80:80 plannerarena:latest
+    docker run --rm -p 8888:8888 kavrakilab/plannerarena:latest
 
-Direct your browser to http://0.0.0.0:80 to see Planner Arena. There are a couple environment variables to configure Planner Arena by running `docker run -e VARIABLE=VALUE ...`:
+Direct your browser to http://0.0.0.0:8888 to see Planner Arena. There are a couple environment variables to configure Planner Arena by running `docker run -e VARIABLE=VALUE ...`:
 
 - `DATABASE` (default value: `/benchmark.db`): The file name of the default benchmark database (inside the docker container). By mounting a host file inside the container, you can make a local benchmark database the default. For example:
 
-      docker run --rm -p 80:80 --mount type=bind,source=${HOME}/mybenchmark.db,target=/tmp/benchmark.db,readonly -e DATABASE=/tmp/benchmark.db plannerarena:latest
+      docker run --rm -p 8888:8888 --mount type=bind,source=${HOME}/mybenchmark.db,target=/tmp/benchmark.db,readonly -e DATABASE=/tmp/benchmark.db kavrakilab/plannerarena:latest
 
 - `MAX_DB_SIZE` (default value: `50000000`): The maximum size in bytes of the database that can be uploaded to the server.
 - `HOSTNAME` (default value: `0.0.0.0`): The IP address of the host.
