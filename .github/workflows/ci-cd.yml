@@ -1,0 +1,76 @@
+# File: .github/workflows/ci-cd.yml
+name: CI & CD for PlannerArena
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    name: Test, Build & Smoke-Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Set up R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        # You can pick a specific R version if needed
+        r-version: '4.2'
+
+    - name: Restore R libraries via renv
+      uses: r-lib/actions/setup-renv@v2
+      with:
+        # defaults to using renv.lock in your repo
+        cache: true
+
+    - name: Run R CMD check
+      run: |
+        R CMD build .
+        R CMD check plannerarena_*.tar.gz --no-manual --as-cran
+
+    - name: Build Docker image
+      run: |
+        docker build \
+          --file Dockerfile \
+          --tag ${{ secrets.DOCKER_REGISTRY }}/plannerarena:${{ github.sha }} .
+
+    - name: Smoke-test Docker container
+      run: |
+        docker run -d --rm --name smoke_test \
+          -p 3838:80 ${{ secrets.DOCKER_REGISTRY }}/plannerarena:${{ github.sha }}
+        # wait up to 60s for startup
+        timeout 60s bash -c \
+          'until curl -s http://localhost:3838 | grep -q "Planner Arena"; do sleep 5; done'
+        docker stop smoke_test
+
+    - name: Log in to Registry
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" \
+        | docker login ${{ secrets.DOCKER_REGISTRY }} \
+        -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+    - name: Push image
+      run: docker push ${{ secrets.DOCKER_REGISTRY }}/plannerarena:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Production Server
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          docker pull ${{ secrets.DOCKER_REGISTRY }}/plannerarena:${{ github.sha }}
+          docker rm -f plannerarena || true
+          docker run -d --restart always \
+            -p 80:80 --name plannerarena \
+            ${{ secrets.DOCKER_REGISTRY }}/plannerarena:${{ github.sha }}
+
