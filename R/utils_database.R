@@ -34,7 +34,7 @@ get_benchmark_data <-
           stringr::str_glue("{sessions_folder}/{query$user}/{query$job}")
       }
       if (!is.null(database_file) && file.exists(database_file)) {
-        con <- pool::dbPool(RSQLite::SQLite(), dbname = database_file)
+        con <- DBI::dbConnect(RSQLite::SQLite(), dbname = database_file)
         # benchmark job may not yet be finished so check that "experiments"
         # table exists.
         if ("experiments" %in% DBI::dbListTables(con)) {
@@ -43,6 +43,7 @@ get_benchmark_data <-
         } else {
           shinyjs::js$refresh()
         }
+        DBI::dbDisconnect(con)
       }
     })
   }
