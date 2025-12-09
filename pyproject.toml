@@ -1,0 +1,45 @@
+[project]
+name = "plannerarena"
+version = "1.0"
+dependencies = [
+    "htmltools>=0.6.0",
+    "shiny>=1.5.0",
+    "polars>=1.35.1",
+    "plotnine>=0.15.1",
+    "pyarrow>=22.0.0",
+    "faicons>=0.2.2",
+    "scikit-misc>=0.5.2",
+    "Jinja2>=3.1.6",
+]
+requires-python = ">= 3.10"
+authors = [
+  {name = "Mark Moll", email = "mark@moll.ai"}
+]
+maintainers = [
+  {name = "Mark Moll", email = "mark@moll.ai"}
+]
+description = "Planner Arena"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+keywords = ["planning", "benchmarking", "ompl"]
+classifiers = [
+    "Framework :: Robot Framework :: Tool",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Visualization"
+]
+
+[project.scripts]
+plannerarena = "plannerarena.app:run"
+
+[project.urls]
+Homepage = "https://plannerarena.org"
+Repository = "https://github.com/ompl/plannerarena.git"
+Issues = "https://github.com/ompl/plannerarena/issues"
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+plannerarena = ["www/ga.js", "www/help.md", "www/plannerarena.css"]

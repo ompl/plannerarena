@@ -8,6 +8,7 @@ PROBLEM_PARAMETERS_SEPARATE_TEXT = "all (separate)"
 
 DataTuple = namedtuple("DataTuple", ["df", "grouping"])
 
+
 def problem_widget(problems: list[str]) -> ui.Tag:
     return ui.input_select(
         "problem", label=ui.h4("Motion planning problem"), choices=problems

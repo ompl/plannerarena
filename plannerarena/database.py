@@ -2,10 +2,12 @@ import re
 import sqlite3
 import polars.selectors as cs
 import polars as pl
-from shiny import Inputs, Outputs, Session, module, reactive, render, ui
+from shiny import Inputs, Outputs, Session, module, reactive, render, ui, req
+from pathlib import Path
 
 
 def get_table(conn: sqlite3.Connection, table: str) -> pl.DataFrame:
+    """read an entire table from an SQLite3 database"""
     df = pl.read_database(
         f"SELECT * from {table}", connection=conn, infer_schema_length=None
     )
@@ -15,17 +17,30 @@ def get_table(conn: sqlite3.Connection, table: str) -> pl.DataFrame:
 def _version_key(version_string):
     # Split the version string into numerical and non-numerical parts
     # e.g., "1.2.3b" -> ['1', '.', '2', '.', '3', 'b']
-    parts = re.split(r'(\d+)', version_string)
+    parts = re.split(r"(\d+)", version_string)
     # Convert numerical parts to integers, keep others as strings
     return tuple(int(p) if p.isdigit() else p for p in parts)
 
-def load_database(dbname: str) -> dict:
-    conn = sqlite3.connect(str(dbname))
+
+def load_database(dbname: str | Path) -> dict:
+    """Read a Planner Arena database and return the parsed tables"""
+    if not Path(dbname).exists():
+        return {
+            "experiments": pl.DataFrame(),
+            "problem_names": [],
+            "parameters": [],
+            "planner_configs": pl.DataFrame(),
+            "enums": pl.DataFrame(),
+            "runs": pl.DataFrame(),
+            "attributes": [],
+            "progress": pl.DataFrame(),
+        }
+    conn = sqlite3.connect(dbname)
     experiments = get_table(conn, "experiments").rename({"name": "experiment"})
     version_enum = pl.Enum(
-            sorted(experiments['version'].unique().to_list(), key=_version_key)
-        )
-    experiments = experiments.with_columns(pl.col('version').cast(version_enum))
+        sorted(experiments["version"].unique().to_list(), key=_version_key)
+    )
+    experiments = experiments.with_columns(pl.col("version").cast(version_enum))
     problem_names = (
         experiments.get_column("experiment").unique(maintain_order=True).to_list()
     )
@@ -57,6 +72,7 @@ def load_database(dbname: str) -> dict:
         "seed",
         "setup",
     ]
+    # augment runs table with experiment name as well as any experiment parameters
     runs = runs.join(
         planner_configs.select("id", "planner"), left_on="plannerid", right_on="id"
     ).join(
@@ -95,9 +111,11 @@ def database_info_server(
     @output
     @render.data_frame
     def benchmark_info():
+        req(not data()["experiments"].is_empty())
         return data()["experiments"].transpose(include_header=True)
 
     @output
     @render.data_frame
     def planner_configs():
+        req(not data()["planner_configs"].is_empty())
         return data()["planner_configs"].select("planner", "settings").unique()

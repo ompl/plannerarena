@@ -3,7 +3,7 @@ import pickle
 import polars as pl
 import plotnine as p9
 from shiny import Inputs, Outputs, Session, module, reactive, render, ui, req
-from widgets import (
+from plannerarena.widgets import (
     problem_widget,
     problem_parameter_filter,
     problem_parameter_values,
@@ -13,7 +13,7 @@ from widgets import (
     version_widget,
     planner_widget,
     download_buttons,
-    DataTuple
+    DataTuple,
 )
 
 
@@ -62,6 +62,10 @@ If you use Planner Arena or the OMPL benchmarking facilities, then we kindly ask
 
 
 def enums_plot(df: pl.DataFrame, enum: pl.DataFrame, grouping: str) -> p9.ggplot:
+    """Create a stacked bar chart for enum types (e.g., "status").
+
+    If grouping is not empty, facetting is used (one plot per group variable value)
+    """
     df = df.join(enum, left_on="status", right_on="value")
     plot = p9.ggplot(df, p9.aes(x="planner", fill="description")) + p9.geom_bar()
     if grouping:
@@ -71,6 +75,7 @@ def enums_plot(df: pl.DataFrame, enum: pl.DataFrame, grouping: str) -> p9.ggplot
 
 
 def ecdf_plot(df: pl.DataFrame, attr: str, grouping: str) -> p9.ggplot:
+    """Create a plot of the empirical cumulative distribution function for the specified attribute."""
     plot = (
         p9.ggplot(df, p9.aes(x=attr, color="planner"))
         + p9.xlab(attr)
@@ -84,6 +89,8 @@ def ecdf_plot(df: pl.DataFrame, attr: str, grouping: str) -> p9.ggplot:
 
 
 def ecdf_plot_with_simplified(df: pl.DataFrame, attr: str) -> p9.ggplot:
+    """Create a plot of the empirical cumulative distribution function for the specified attribute
+    and the value of the attribute after path simplification."""
     return (
         p9.ggplot(
             df.with_columns(
@@ -110,6 +117,8 @@ def ecdf_plot_with_simplified(df: pl.DataFrame, attr: str) -> p9.ggplot:
 def boxplot(
     df: pl.DataFrame, attr: str, grouping: str, outlier_shape: str, ylogscale: bool
 ) -> p9.ggplot:
+    """Create a box plot for the specified attribute for each selected planner."""
+
     if grouping:
         plot = p9.ggplot(
             df, p9.aes(x="planner", y=attr, fill=grouping)
@@ -129,6 +138,8 @@ def boxplot(
 def boxplot_with_simplified(
     df: pl.DataFrame, attr: str, outlier_shape: str, ylogscale: bool
 ) -> p9.ggplot:
+    """Create a box plot for the specified attribute and the value of the attribute after path
+    simplification for each selected planner."""
     plot = (
         p9.ggplot(df, p9.aes(x="planner", y="value", color="key", fill="key"))
         + p9.ylab(attr)
@@ -157,10 +168,14 @@ def performance_server(
 ):
     @reactive.calc
     def exp_data() -> pl.DataFrame:
+        """Return data for the selected experiment"""
+        req(not raw_data()["runs"].is_empty())
         return raw_data()["runs"].filter(pl.col("experiment") == input.problem())
 
     @reactive.calc
-    def data() -> pl.DataFrame:
+    def data() -> DataTuple:
+        """Return data for the selected OMPL version, the selected planners, and selected experiment
+        parameters (if present)"""
         param_values = problem_parameter_values(raw_data()["parameters"], input)
         grouping = problem_parameter_groups(param_values)
         df = problem_parameter_filter(
@@ -181,11 +196,13 @@ def performance_server(
     @output
     @render.ui
     def problem_ui() -> ui.Tag:
+        req(raw_data()["problem_names"])
         return problem_widget(raw_data()["problem_names"])
 
     @output
     @render.ui
-    def problem_parameter_ui() -> ui.Tag:
+    def problem_parameter_ui() -> ui.Tag | None:
+        req(not raw_data()["experiments"].is_empty())
         return problem_parameter_widgets(
             raw_data()["experiments"].filter(
                 (pl.col("experiment") == input.problem())
@@ -197,11 +214,12 @@ def performance_server(
     @output
     @render.ui
     def attribute_ui() -> ui.Tag:
+        req(raw_data()["attributes"])
         return attribute_widget(raw_data()["attributes"])
 
     @output
     @render.ui
-    def version_ui() -> ui.Tag:
+    def version_ui() -> ui.Tag | None:
         return version_widget(exp_data()["version"].unique().to_list())
 
     @output
@@ -270,7 +288,7 @@ def performance_server(
         if grouping:
             grouping = ["planner", grouping]
         else:
-            grouping = ["planner"] 
+            grouping = ["planner"]
         return (
             data()
             .df.with_columns(pl.col(input.attribute()).is_null().alias("missing"))

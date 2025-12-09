@@ -3,18 +3,18 @@ from shiny import App, Inputs, Outputs, Session, reactive, ui
 from shiny.types import FileInfo
 import faicons as fa
 from pathlib import Path
-from database import database_info_ui, database_info_server, load_database
-from performance import performance_ui, performance_server
-from progress import progress_ui, progress_server
-from regression import regression_ui, regression_server
+from plannerarena.database import database_info_ui, database_info_server, load_database
+from plannerarena.performance import performance_ui, performance_server
+from plannerarena.progress import progress_ui, progress_server
+from plannerarena.regression import regression_ui, regression_server
 import pandas as pd
 
 pd.options.mode.copy_on_write = True
 
-
 ASSET_DIR = Path(__file__).parent / "www"
-# DATABASE = os.getenv("DATABASE", ASSET_DIR / "benchmark.db")
-DATABASE = os.getenv("DATABASE", ASSET_DIR / "cartdist.db")
+
+# default database and max upload size are configurable via env vars
+DATABASE = os.getenv("DATABASE", ASSET_DIR / "benchmark.db")
 MAX_DB_SIZE = int(os.getenv("MAX_DB_SIZE", "50000000"))
 
 app_ui = ui.page_navbar(
@@ -114,19 +114,31 @@ def app_server(input: Inputs, output: Outputs, session: Session):
     def data():
         file: list[FileInfo] | None = input.database()
         if file is None or file[0]["size"] > MAX_DB_SIZE:
+            if not Path(DATABASE).exists():
+                ui.update_nav_panel("navbar", "database", "show")
+                ui.update_navset("navbar", "database")
+                ui.notification_show(
+                "No default database found. Upload a database first.", duration=5, type="warning"
+            )
             return load_database(DATABASE)
         return load_database(file[0]["datapath"])
 
+    # after a new database is uploaded switch to the "performance" tab
     @reactive.effect
     @reactive.event(input.database)
     def _():
         ui.update_nav_panel("navbar", "performance", "show")
         ui.update_navset("navbar", "performance")
 
+    # create all the different tabs
     performance_server("performance", data)
     progress_server("progress", data)
     regression_server("regression", data)
     database_info_server("database_info", data)
 
-
+# create the Shiny app. The shiny command line app looks for this variable
 app = App(app_ui, app_server, static_assets=ASSET_DIR)
+
+def run():
+    from shiny._main import run_app
+    run_app(app, host="127.0.0.1", port=8888)

@@ -1,11 +1,9 @@
 import io
 import pickle
-from collections import namedtuple
-
 import polars as pl
 import plotnine as p9
 from shiny import Inputs, Outputs, Session, module, reactive, render, ui, req
-from widgets import (
+from plannerarena.widgets import (
     problem_widget,
     problem_parameter_filter,
     problem_parameter_values,
@@ -15,7 +13,7 @@ from widgets import (
     version_widget,
     planner_widget,
     download_buttons,
-    DataTuple
+    DataTuple,
 )
 
 
@@ -48,18 +46,18 @@ def progress_ui() -> ui.Tag:
     )
 
 
-
 @module.server
 def progress_server(
     input: Inputs, output: Outputs, session: Session, raw_data: reactive.Value
 ):
     @reactive.calc
     def exp_data() -> pl.DataFrame:
+        req(not raw_data()["runs"].is_empty())
         return raw_data()["runs"].filter(pl.col("experiment") == input.problem())
 
     @reactive.calc
-    def data() -> pl.DataFrame:
-        req(len(raw_data()["progress"]) > 0)
+    def data() -> DataTuple:
+        req(not raw_data()["progress"].is_empty())
         param_values = problem_parameter_values(raw_data()["parameters"], input)
         grouping = problem_parameter_groups(param_values)
         df = problem_parameter_filter(
@@ -86,11 +84,13 @@ def progress_server(
     @output
     @render.ui
     def problem_ui() -> ui.Tag:
+        req(raw_data()["problem_names"])
         return problem_widget(raw_data()["problem_names"])
 
     @output
     @render.ui
-    def problem_parameter_ui() -> ui.Tag:
+    def problem_parameter_ui() -> ui.Tag | None:
+        req(not raw_data()["experiments"].is_empty())
         return problem_parameter_widgets(
             raw_data()["experiments"].filter(
                 (pl.col("experiment") == input.problem())
@@ -102,13 +102,14 @@ def progress_server(
     @output
     @render.ui
     def attribute_ui() -> ui.Tag:
+        req(not raw_data()["progress"].is_empty())
         return attribute_widget(
             raw_data()["progress"].columns[2:], "Progress attribute"
         )
 
     @output
     @render.ui
-    def version_ui() -> ui.Tag:
+    def version_ui() -> ui.Tag | None:
         return version_widget(exp_data()["version"].unique().to_list())
 
     @output
@@ -118,7 +119,7 @@ def progress_server(
 
     @reactive.calc
     def plot_object() -> p9.ggplot:
-        req(len(data().df) > 0)
+        req(not data().df.is_empty())
         plot = (
             p9.ggplot(
                 data().df,
@@ -141,7 +142,7 @@ def progress_server(
 
     @reactive.calc
     def plot_num_measurements_object() -> p9.ggplot:
-        req(len(data()) > 0)
+        req(not data().df.is_empty())
         plot = (
             p9.ggplot(data().df, p9.aes(x="time", color="planner"))
             + p9.xlab("time (s)")

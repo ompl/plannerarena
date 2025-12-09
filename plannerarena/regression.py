@@ -3,7 +3,7 @@ import pickle
 import polars as pl
 import plotnine as p9
 from shiny import Inputs, Outputs, Session, module, reactive, render, ui, req
-from widgets import (
+from plannerarena.widgets import (
     problem_widget,
     problem_parameter_filter,
     problem_parameter_values,
@@ -13,7 +13,7 @@ from widgets import (
     version_widget,
     planner_widget,
     download_buttons,
-    DataTuple
+    DataTuple,
 )
 
 
@@ -41,19 +41,28 @@ def regression_server(
 ):
     @reactive.calc
     def exp_data() -> pl.DataFrame:
+        req(not raw_data()["runs"].is_empty())
         return raw_data()["runs"].filter(pl.col("experiment") == input.problem())
 
     @reactive.calc
-    def data() -> pl.DataFrame:
+    def data() -> DataTuple:
         param_values = problem_parameter_values(raw_data()["parameters"], input)
         grouping = problem_parameter_groups(param_values)
-        df = problem_parameter_filter(exp_data().filter(
-            (pl.col("version").is_in(input.versions()))
-            & (pl.col("planner").is_in(input.planners()))
-        ), param_values)
-        if df["version"].unique().count()<=1:
-            ui.notification_show("Need data for more than 1 version of OMPL", duration=5, type="warning")
-            return pl.DataFrame({"version": [], "planner": [], input.attribute(): []})
+        df = problem_parameter_filter(
+            exp_data().filter(
+                (pl.col("version").is_in(input.versions()))
+                & (pl.col("planner").is_in(input.planners()))
+            ),
+            param_values,
+        )
+        if df["version"].unique().count() <= 1:
+            ui.notification_show(
+                "Need data for more than 1 version of OMPL", duration=5, type="warning"
+            )
+            return DataTuple(
+                pl.DataFrame({"version": [], "planner": [], input.attribute(): []}),
+                None,
+            )
         if grouping:
             # hacky way to create enum type from numerically sorted experiment parameters
             grouping_enum = pl.Enum(
@@ -65,11 +74,13 @@ def regression_server(
     @output
     @render.ui
     def problem_ui() -> ui.Tag:
+        req(raw_data()["problem_names"])
         return problem_widget(raw_data()["problem_names"])
 
     @output
     @render.ui
-    def problem_parameter_ui() -> ui.Tag:
+    def problem_parameter_ui() -> ui.Tag | None:
+        req(not raw_data()["experiments"].is_empty())
         return problem_parameter_widgets(
             raw_data()["experiments"].filter(
                 (pl.col("experiment") == input.problem())
@@ -81,11 +92,12 @@ def regression_server(
     @output
     @render.ui
     def attribute_ui() -> ui.Tag:
+        req(raw_data()["attributes"])
         return attribute_widget(raw_data()["attributes"])
 
     @output
     @render.ui
-    def versions_ui() -> ui.Tag:
+    def versions_ui() -> ui.Tag | None:
         return version_widget(exp_data()["version"].unique().to_list(), checkbox=True)
 
     @output
@@ -95,10 +107,13 @@ def regression_server(
 
     @reactive.calc
     def plot_object() -> p9.ggplot:
-        req(len(data())>0)
+        req(not data().df.is_empty())
         plot = (
             p9.ggplot(
-                data().df, p9.aes(x="version", y=input.attribute(), fill="planner", group="planner")
+                data().df,
+                p9.aes(
+                    x="version", y=input.attribute(), fill="planner", group="planner"
+                ),
             )
             + p9.stat_summary(geom="bar", position=p9.position_dodge(width=1))
             + p9.stat_summary(geom="errorbar", position=p9.position_dodge(width=1))
