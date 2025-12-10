@@ -43,3 +43,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
 plannerarena = ["www/ga.js", "www/help.md", "www/plannerarena.css"]
+
+[tool.cibuildwheel]
+build-verbosity = 1
+skip = ""
