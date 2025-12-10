@@ -107,7 +107,6 @@ def database_info_ui():
 def database_info_server(
     input: Inputs, output: Outputs, session: Session, data: reactive.Value
 ):
-
     @output
     @render.data_frame
     def benchmark_info():

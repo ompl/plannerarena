@@ -224,7 +224,7 @@ The ompl_benchmark_statistics.py script can produce a series of plots from a dat
   - *date:* the date on which the experiment was performed.
   - *seed:* the random seed used.
   - *setup:* a string containing a “print-out” of all the settings of the SimpleSetup object used during benchmarking.
-  
+
   Any additional columns are assumed to be numeric values corresponding to experimental hyperparameters. This can be useful to show planner performance as a function of, e.g., number of revolute joints for a parametric robot arm or number of obstacles in parametric environment. Planner Arena will show a selection widget for each hyperparameter. The user can choose to (1) aggregate planner runs over all hyperparameter values, (2) show performance separated out by hyperparameter value, or (3) show performance for one selected hyperparameter value.
 - **plannerConfigs**. There are a number of planner types (such as PRM and RRT), but each planner can typically be configured with a number of parameters. A planner configuration refers to a planner type with specific parameter settings. The `plannerConfigs` table contains the following information:
   - *id:* an ID used in the `runs` table to denote that a given planner configuration was used for a run.
@@ -238,8 +238,8 @@ The ompl_benchmark_statistics.py script can produce a series of plots from a dat
   - *id:* ID of the run
   - *experimentid:* ID of the experiment to which this run belonged.
   - *plannerid:* ID of the planner configuration used for this run.
-  
-  In addition, there will be many benchmark statistics. None are *required*, but the OMPL planners all report the properties described above such as time, memory, solution length, simplification time, etc. It is possible that not all planners report the same properties. In that case, planners that do not report such properties will have NULL values in the corresponding fields. Users can programmatically define new properties that can get logged for each run in OMPL. 
+
+  In addition, there will be many benchmark statistics. None are *required*, but the OMPL planners all report the properties described above such as time, memory, solution length, simplification time, etc. It is possible that not all planners report the same properties. In that case, planners that do not report such properties will have NULL values in the corresponding fields. Users can programmatically define new properties that can get logged for each run in OMPL.
 - **progress**. Some planners (such as RRT*) can also periodically report properties *during* a run. This can be useful to analyze the convergence or growth rate. The `progress` table contains the following information:
   - *runid:* the ID of the run for which progress data was tracked.
   - *time:* the time (in sec.) at which the property was measured.
@@ -248,6 +248,5 @@ The ompl_benchmark_statistics.py script can produce a series of plots from a dat
   - *iterations:* the number of iterations.
   - *collision_checks:* the number of collision checks (or, more precisely, the number state validator calls).
   - *best_cost:* the cost of the best solution found so far.
-  
+
   As with run properties, users can programmatically define their own progress properties that will be logged during each run of a planner.
-  

@@ -118,8 +118,10 @@ def app_server(input: Inputs, output: Outputs, session: Session):
                 ui.update_nav_panel("navbar", "database", "show")
                 ui.update_navset("navbar", "database")
                 ui.notification_show(
-                "No default database found. Upload a database first.", duration=5, type="warning"
-            )
+                    "No default database found. Upload a database first.",
+                    duration=5,
+                    type="warning",
+                )
             return load_database(DATABASE)
         return load_database(file[0]["datapath"])
 
@@ -136,9 +138,12 @@ def app_server(input: Inputs, output: Outputs, session: Session):
     regression_server("regression", data)
     database_info_server("database_info", data)
 
+
 # create the Shiny app. The shiny command line app looks for this variable
 app = App(app_ui, app_server, static_assets=ASSET_DIR)
 
+
 def run():
     from shiny._main import run_app
+
     run_app(app, host="127.0.0.1", port=8888)
