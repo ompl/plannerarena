@@ -41,6 +41,9 @@ Issues = "https://github.com/ompl/plannerarena/issues"
 requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = ["plannerarena"]
+
 [tool.setuptools.package-data]
 plannerarena = ["www/ga.js", "www/help.md", "www/plannerarena.css"]
 
