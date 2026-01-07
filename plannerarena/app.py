@@ -73,7 +73,7 @@ app_ui = ui.page_navbar(
         "Help",
         ui.div(
             ui.div(
-                ui.markdown(open(ASSET_DIR / "help.md", "r").read()),
+                ui.markdown(open(ASSET_DIR / "help.md", "r", encoding="utf-8").read()),
                 class_="col-sm-10 offset-sm-1",
             ),
             class_="row",
