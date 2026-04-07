@@ -25,7 +25,8 @@ def _problem_parameter_id_map(parameters: list[str]) -> dict[str, str]:
 def problem_parameter_filter(df: pl.DataFrame, param_values: dict[str, str]):
     for param, value in param_values.items():
         if (
-            value != PROBLEM_PARAMETERS_AGGREGATE_TEXT
+            value != None
+            and value != PROBLEM_PARAMETERS_AGGREGATE_TEXT
             and value != PROBLEM_PARAMETERS_SEPARATE_TEXT
         ):
             try:
@@ -55,6 +56,8 @@ def problem_parameter_widget(
     data: pl.DataFrame, param_id: str, parameter: str
 ) -> ui.Tag:
     values = data[parameter].unique().drop_nulls().to_list()
+    if len(values) == 0:
+        return []
     if len(values) > 1:
         values = [
             PROBLEM_PARAMETERS_AGGREGATE_TEXT,
