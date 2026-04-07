@@ -2,17 +2,22 @@
 
 ## Table of Contents
 
-- [About Planner Arena](#about)
-- [How to cite Planner Arena](#cite)
-- [The benchmarks included in the default database.](#sampleBenchmarks)
-- The different visualizations of benchmark data:
-  - [Plots of overall performance.](#overallPerformance)
-  - [Progress of planners over time.](#progress)
-  - [Comparison of different versions of the same planners.](#regression)
-- [Detailed information about the database.](#databaseInfo)
-- [Changing the database used.](#changeDatabase)
-- [Running Planner Arena locally](#local)
-- [Advanced: Creating your own benchmark databases outside of OMPL](#databaseCreation)
+- [Help](#help)
+  - [Table of Contents](#table-of-contents)
+  - [About Planner Arena](#about-planner-arena)
+  - [How to cite Planner Arena](#how-to-cite-planner-arena)
+    - [BibTeX](#bibtex)
+  - [Sample benchmark descriptions](#sample-benchmark-descriptions)
+  - [Plots of overall performance](#plots-of-overall-performance)
+  - [Progress of planners over time](#progress-of-planners-over-time)
+  - [Comparison of different versions of the same planners](#comparison-of-different-versions-of-the-same-planners)
+  - [Information about the benchmark database](#information-about-the-benchmark-database)
+  - [Changing the benchmark database](#changing-the-benchmark-database)
+  - [Running Planner Arena locally](#running-planner-arena-locally)
+    - [Docker](#docker)
+  - [Advanced: Creating your own benchmark databases outside of OMPL](#advanced-creating-your-own-benchmark-databases-outside-of-ompl)
+    - [The benchmark log file format](#the-benchmark-log-file-format)
+    - [The benchmark database schema](#the-benchmark-database-schema)
 
 ## <a name="about"></a>About Planner Arena
 
@@ -46,47 +51,15 @@ Mark Moll, Ioan A. Șucan, Lydia E. Kavraki, <a href="https://moll.ai/publicatio
 
 ## <a name="sampleBenchmarks"></a>Sample benchmark descriptions
 
-The default database used by the Planner Arena server contains results for a number of sample benchmarks described below. Most of them were produced by running the `ompl_benchmark` tool on the following configuration files included with the OMPL.app distribution:
-
-- `cubicles.cfg`: A fairly straightforward 3D rigid body planning problem. There are a few path homotopy classes. The path is a little convoluted, since it has go through the whole environment. A large part of the “basement” is not connected to the rest of the environment. A sample solution is shown in the first movie below.
-- `cubicles_opt.cfg`: The same problem, but configured to be solved with a number of optimizing planners. The planners are given more time than in the previous benchmark so that we can compare convergence rates in the progress plots.
-- `Abstract.cfg`: This is a more challenging 3D rigid body planning problem with several narrow passages, and several homotopy classes.
-- `Home.cfg`: This is also a challenging 3D rigid body planning problem. There is a long path between start and goal that is relatively easy to find, but there also other, shorter paths that are much harder to find. This is therefore a good benchmark for optimizing planners.
-- `pipedream_ring.cfg`: A 3D rigid body planning problem that contains one long, curvy narrow passage. Nevertheless, most planners can solve this problem within a few seconds.
-- `BugTrap_dcar.cfg`: A challenging kinodynamic motion planning problem: a second-order car has to drive out of a “bug trap” obstacle.
-- `Maze_kcar.cfg`: Another kinodynamic motion planning problem: a first-order car has to navigate through a maze. The dynamics are simpler than in the previous benchmark, but the obstacles are more complex.
-
-<div class="row" id="videocollection">
-  <div class="video">
-    <iframe src="https://player.vimeo.com/video/58686592?title=0&amp;byline=0&amp;portrait=0&amp;color=ffffff&amp;autoplay=1&amp;loop=1" width="280" height="216" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe><br>
-    <b>Cubicles</b>
-  </div>
-  <div class="video">
-    <iframe src="https://player.vimeo.com/video/107884951?title=0&amp;byline=0&amp;portrait=0&amp;color=ffffff&amp;autoplay=1&amp;loop=1" width="280" height="265" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe><br>
-    <b>Abstract</b>
-  </div>
-  <div class="video">
-    <iframe src="https://player.vimeo.com/video/58686593?title=0&amp;byline=0&amp;portrait=0&amp;color=ffffff&amp;autoplay=1&amp;loop=1" width="280" height="195" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe><br>
-    <b>Home</b>
-  </div>
-  <div class="video">
-    <iframe src="https://player.vimeo.com/video/107885658?title=0&amp;byline=0&amp;portrait=0&amp;color=ffffff&amp;autoplay=1&amp;loop=1" width="280" height="258" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe><br>
-    <b>Pipedream – ring</b>
-  </div>
-  <div class="video">
-    <iframe src="https://player.vimeo.com/video/107887115?title=0&amp;byline=0&amp;portrait=0&amp;color=ffffff&amp;autoplay=1&amp;loop=1" width="280" height="281" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe><br>
-    <b>Bugtrap – second-order car</b>
-  </div>
-  <div class="video">
-    <iframe src="https://player.vimeo.com/video/58686594?title=0&amp;byline=0&amp;portrait=0&amp;color=ffffff&amp;autoplay=1&amp;loop=1" width="280" height="280" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe><br>
-    <b>Maze – kinematic car</b>
-  </div>
+<div class="row justify-content-center">
+    <div class="col-md-8 col-sm-10">
+      <img src="ompl-vamp-mbm.gif" width="100%" alt="VAMP ultra-fast planning demonstration on the MotionBenchmaker Dataset">
+    </div>
 </div>
+The Planner Arena site contains some sample results produced with demo programs included in OMPL:
 
-We have also included the results of a few benchmarks where the robot cannot be modeled by a rigid body. These benchmarks are included with OMPL and OMPL.app as demo programs. We have included the results:
-
-- **KinematicBenchmark20** (produced by running `demo_KinematicChainBenchmark 20`): A kinematic chain with 20 degrees of freedom has to move out of a curved narrow passage by essentially folding up onto itself (while avoiding self-collisions!) before fully extending outside the narrow passage. The implementation of this benchmark has improved significantly, so the benchmark times will not exactly match the graphs shown in [this paper](https://dx.doi.org/10.1109/ICRA.2013.6630908), where the benchmark is introduced.
-- **EasySwap*** (produced by running `demo_AnytimePathShortening easy alternate 30 rrtconnect` and `demo_AnytimePathShortening easy none 30 rrtstar`): This benchmark illustrates the benefit of Anytime Path Shortening, a generic wrapper around one or more geometric motion planners that repeatedly applies [shortcutting](\ref ompl::geometric::PathSimplifier) and [hybridization](\ref ompl::geometric::PathHybridization) to a set of solution paths. As dimensionality of the configuration space increases, this approach starts to compare very favorably to asymptotically optimal planners like RRT*. The benchmark consists of two rigid bodies separated by a wall with a not-so-narrow passage having to swap positions. The configuration space is thus 12-dimensional.
+- [motion_benchmarker_demo.py](https://ompl.kavrakilab.org/motion__benchmaker__demo_8py_source.html): We ran this demo multiple times on a variety of motion planning problems with different robots and different environment representations (meshes and pointclouds). This demo showcases the ability to perform motion planning on realistic robots. It uses the Python bindings and the integration with VAMP. Use the dropdown boxes to inspect results for a specific environment, representation, or robot.
+- [Koules](https://ompl.kavrakilab.org/Koules_8cpp_source.html): This demo showscases the kinodynamic planning capabilities of planners in OMPL. See the problem description and movie in the [OMPL gallery](https://ompl.kavrakilab.org/gallery.html) under the section "Planning for Underactuated Systems in the Presence of Drift."
 
 ## <a name="overallPerformance"></a>Plots of overall performance
 
