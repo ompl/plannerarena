@@ -1,8 +1,12 @@
 import os
+import sys
 from shiny import App, Inputs, Outputs, Session, reactive, ui
 from shiny.types import FileInfo
 import faicons as fa
 from pathlib import Path
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 from plannerarena.database import database_info_ui, database_info_server, load_database
 from plannerarena.performance import performance_ui, performance_server
 from plannerarena.progress import progress_ui, progress_server

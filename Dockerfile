@@ -10,11 +10,11 @@ RUN apt-get update && \
     gdebi -n shiny-server-1.5.23.1030-amd64.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* shiny-server-1.5.23.1030-amd64.deb
-COPY plannerarena/ requirements.txt /plannerarena/
+COPY plannerarena/ requirements.txt /srv/plannerarena/
 COPY shiny-server.conf /etc/shiny-server/shiny-server.conf
 ADD --chown=shiny:shiny https://plannerarena.org/benchmark.db \
     /plannerarena/www/benchmark.db
-WORKDIR /plannerarena
+WORKDIR /srv/plannerarena
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt && rm requirements.txt
 EXPOSE 8888
 RUN chown -R shiny:shiny /srv/shiny-server /var/lib/shiny-server

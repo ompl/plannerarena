@@ -1,6 +1,6 @@
 [project]
 name = "plannerarena"
-version = "1.0"
+version = "1.0.1"
 dependencies = [
     "htmltools>=0.6.0",
     "shiny>=1.5.0",
@@ -45,7 +45,7 @@ build-backend = "setuptools.build_meta"
 packages = ["plannerarena"]
 
 [tool.setuptools.package-data]
-plannerarena = ["www/ga.js", "www/help.md", "www/plannerarena.css"]
+plannerarena = ["www/ga.js", "www/help.md", "www/plannerarena.css", "www/ompl-vamp-mbm.gif"]
 
 [tool.cibuildwheel]
 build-verbosity = 1
