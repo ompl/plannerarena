@@ -1,6 +1,6 @@
 htmltools==0.6.0
 shiny==1.5.0
-polars==1.35.1
+polars[rtcompat]==1.35.1
 plotnine==0.15.1
 pyarrow==22.0.0
 faicons==0.2.2
