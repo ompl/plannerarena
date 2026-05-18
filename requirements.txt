@@ -1,5 +1,6 @@
 htmltools==0.6.0
 shiny==1.5.0
+# use polars[rtcompat]==1.35.1 on old machines if you get "illegal instruction" errors
 polars==1.35.1
 plotnine==0.15.1
 pyarrow==22.0.0
