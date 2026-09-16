@@ -10,6 +10,7 @@ from plannerarena.widgets import (
     problem_parameter_groups,
     problem_parameter_widgets,
     attribute_widget,
+    title_widget,
     version_widget,
     planner_widget,
     download_buttons,
@@ -37,21 +38,21 @@ def regression_ui() -> ui.Tag:
 
 @module.server
 def regression_server(
-    input: Inputs, output: Outputs, session: Session, raw_data: reactive.Value
+    inputs: Inputs, output: Outputs, session: Session, raw_data: reactive.Value
 ):
     @reactive.calc
     def exp_data() -> pl.DataFrame:
         req(not raw_data()["runs"].is_empty())
-        return raw_data()["runs"].filter(pl.col("experiment") == input.problem())
+        return raw_data()["runs"].filter(pl.col("experiment") == inputs.problem())
 
     @reactive.calc
     def data() -> DataTuple:
-        param_values = problem_parameter_values(raw_data()["parameters"], input)
+        param_values = problem_parameter_values(raw_data()["parameters"], inputs)
         grouping = problem_parameter_groups(param_values)
         df = problem_parameter_filter(
             exp_data().filter(
-                (pl.col("version").is_in(input.versions()))
-                & (pl.col("planner").is_in(input.planners()))
+                (pl.col("version").is_in(inputs.versions()))
+                & (pl.col("planner").is_in(inputs.planners()))
             ),
             param_values,
         )
@@ -60,7 +61,7 @@ def regression_server(
                 "Need data for more than 1 version of OMPL", duration=5, type="warning"
             )
             return DataTuple(
-                pl.DataFrame({"version": [], "planner": [], input.attribute(): []}),
+                pl.DataFrame({"version": [], "planner": [], inputs.attribute(): []}),
                 None,
             )
         if grouping:
@@ -83,8 +84,8 @@ def regression_server(
         req(not raw_data()["experiments"].is_empty())
         return problem_parameter_widgets(
             raw_data()["experiments"].filter(
-                (pl.col("experiment") == input.problem())
-                & (pl.col("version").is_in(input.versions()))
+                (pl.col("experiment") == inputs.problem())
+                & (pl.col("version").is_in(inputs.versions()))
             ),
             raw_data()["parameters"],
         )
@@ -94,6 +95,11 @@ def regression_server(
     def attribute_ui() -> ui.Tag:
         req(raw_data()["attributes"])
         return attribute_widget(raw_data()["attributes"])
+
+    @output
+    @render.ui
+    def title_ui() -> ui.Tag:
+        return title_widget("")
 
     @output
     @render.ui
@@ -112,9 +118,10 @@ def regression_server(
             p9.ggplot(
                 data().df,
                 p9.aes(
-                    x="version", y=input.attribute(), fill="planner", group="planner"
+                    x="version", y=inputs.attribute(), fill="planner", group="planner"
                 ),
             )
+            + p9.ggtitle(inputs.title())
             + p9.stat_summary(geom="bar", position=p9.position_dodge(width=1))
             + p9.stat_summary(geom="errorbar", position=p9.position_dodge(width=1))
         )

@@ -10,6 +10,7 @@ from plannerarena.widgets import (
     problem_parameter_groups,
     problem_parameter_widgets,
     attribute_widget,
+    title_widget,
     version_widget,
     planner_widget,
     download_buttons,
@@ -35,6 +36,7 @@ def progress_ui() -> ui.Tag:
                         ui.input_slider("opacity", "Measurement opacity", 0, 100, 50),
                     ),
                 ),
+                ui.output_ui("title_ui"),
                 ui.output_ui("version_ui"),
                 ui.output_ui("planner_ui"),
             ),
@@ -48,24 +50,24 @@ def progress_ui() -> ui.Tag:
 
 @module.server
 def progress_server(
-    input: Inputs, output: Outputs, session: Session, raw_data: reactive.Value
+    inputs: Inputs, output: Outputs, session: Session, raw_data: reactive.Value
 ):
     @reactive.calc
     def exp_data() -> pl.DataFrame:
         req(not raw_data()["runs"].is_empty())
-        return raw_data()["runs"].filter(pl.col("experiment") == input.problem())
+        return raw_data()["runs"].filter(pl.col("experiment") == inputs.problem())
 
     @reactive.calc
     def data() -> DataTuple:
         req(not raw_data()["progress"].is_empty())
-        param_values = problem_parameter_values(raw_data()["parameters"], input)
+        param_values = problem_parameter_values(raw_data()["parameters"], inputs)
         grouping = problem_parameter_groups(param_values)
         df = problem_parameter_filter(
             raw_data()["progress"].join(
                 exp_data()
                 .filter(
-                    (pl.col("version") == input.version())
-                    & (pl.col("planner").is_in(input.planners()))
+                    (pl.col("version") == inputs.version())
+                    & (pl.col("planner").is_in(inputs.planners()))
                 )
                 .select(["id", "planner", grouping]),
                 left_on="runid",
@@ -93,8 +95,8 @@ def progress_server(
         req(not raw_data()["experiments"].is_empty())
         return problem_parameter_widgets(
             raw_data()["experiments"].filter(
-                (pl.col("experiment") == input.problem())
-                & (pl.col("version") == input.version())
+                (pl.col("experiment") == inputs.problem())
+                & (pl.col("version") == inputs.version())
             ),
             raw_data()["parameters"],
         )
@@ -106,6 +108,11 @@ def progress_server(
         return attribute_widget(
             raw_data()["progress"].columns[2:], "Progress attribute"
         )
+
+    @output
+    @render.ui
+    def title_ui() -> ui.Tag:
+        return title_widget("")
 
     @output
     @render.ui
@@ -125,19 +132,20 @@ def progress_server(
                 data().df,
                 p9.aes(
                     x="time",
-                    y=input.attribute(),
+                    y=inputs.attribute(),
                     color="planner",
                     fill="planner",
                 ),
             )
+            + p9.ggtitle(inputs.title())
             + p9.xlab("time (s)")
             # TODO: make this work with statsmodels' GAM
             + p9.geom_smooth(na_rm=True, method="loess", span=0.1, se=False)
         )
         if data().grouping:
             plot = plot + p9.scale_linetype(name=data().grouping)
-        if input.show_measurements():
-            plot = plot + p9.geom_point(alpha=input.opacity() / 100)
+        if inputs.show_measurements():
+            plot = plot + p9.geom_point(alpha=inputs.opacity() / 100)
         return plot
 
     @reactive.calc
@@ -145,8 +153,9 @@ def progress_server(
         req(not data().df.is_empty())
         plot = (
             p9.ggplot(data().df, p9.aes(x="time", color="planner"))
+            + p9.ggtitle(inputs.title())
             + p9.xlab("time (s)")
-            + p9.ylab(f"# measurements for {input.attribute()}")
+            + p9.ylab(f"# measurements for {inputs.attribute()}")
             + p9.geom_freqpoly(binwidth=1)
         )
         if data().grouping:
