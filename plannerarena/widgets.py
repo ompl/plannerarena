@@ -37,11 +37,11 @@ def problem_parameter_filter(df: pl.DataFrame, param_values: dict[str, str]):
     return df
 
 
-def problem_parameter_values(parameters: list[str], input: Inputs) -> dict[str, str]:
+def problem_parameter_values(parameters: list[str], inputs: Inputs) -> dict[str, str]:
     return {
-        param: input[param_id].get()
+        param: inputs[param_id].get()
         for param, param_id in _problem_parameter_id_map(parameters).items()
-        if input[param_id].is_set()
+        if inputs[param_id].is_set()
     }
 
 
@@ -94,6 +94,14 @@ def attribute_widget(
         selected="time" if "time" in attributes else None,
     )
 
+def title_widget(
+    title: str
+) -> ui.Tag:
+    return ui.input_text(
+        "title",
+        label=ui.h4("Title"),
+        value=title,
+    )
 
 def version_widget(versions: list[str], checkbox: bool = False) -> ui.Tag | None:
     if not versions:

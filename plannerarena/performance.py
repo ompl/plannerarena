@@ -10,6 +10,7 @@ from plannerarena.widgets import (
     problem_parameter_groups,
     problem_parameter_widgets,
     attribute_widget,
+    title_widget,
     version_widget,
     planner_widget,
     download_buttons,
@@ -41,6 +42,7 @@ def performance_ui() -> ui.Tag:
                         ui.input_checkbox("y_log_scale", "Use log scale for Y-axis"),
                     ),
                 ),
+                ui.output_ui("title_ui"),
                 ui.output_ui("version_ui"),
                 ui.output_ui("planner_ui"),
             ),
@@ -61,23 +63,32 @@ If you use Planner Arena or the OMPL benchmarking facilities, then we kindly ask
     )
 
 
-def enums_plot(df: pl.DataFrame, enum: pl.DataFrame, grouping: str) -> p9.ggplot:
+def enums_plot(
+    df: pl.DataFrame, enum: pl.DataFrame, grouping: str, title: str = ""
+) -> p9.ggplot:
     """Create a stacked bar chart for enum types (e.g., "status").
 
     If grouping is not empty, facetting is used (one plot per group variable value)
     """
     df = df.join(enum, left_on="status", right_on="value")
-    plot = p9.ggplot(df, p9.aes(x="planner", fill="description")) + p9.geom_bar()
+    plot = (
+        p9.ggplot(df, p9.aes(x="planner", fill="description"))
+        + p9.ggtitle(title)
+        + p9.geom_bar()
+    )
     if grouping:
         return plot + p9.facet_grid(grouping)
     else:
         return plot
 
 
-def ecdf_plot(df: pl.DataFrame, attr: str, grouping: str) -> p9.ggplot:
+def ecdf_plot(
+    df: pl.DataFrame, attr: str, grouping: str, title: str = ""
+) -> p9.ggplot:
     """Create a plot of the empirical cumulative distribution function for the specified attribute."""
     plot = (
         p9.ggplot(df, p9.aes(x=attr, color="planner"))
+        + p9.ggtitle(title)
         + p9.xlab(attr)
         + p9.ylab("cumulative probability")
         + p9.stat_ecdf()
@@ -88,7 +99,9 @@ def ecdf_plot(df: pl.DataFrame, attr: str, grouping: str) -> p9.ggplot:
         return plot
 
 
-def ecdf_plot_with_simplified(df: pl.DataFrame, attr: str) -> p9.ggplot:
+def ecdf_plot_with_simplified(
+    df: pl.DataFrame, attr: str, title: str = ""
+) -> p9.ggplot:
     """Create a plot of the empirical cumulative distribution function for the specified attribute
     and the value of the attribute after path simplification."""
     return (
@@ -104,6 +117,7 @@ def ecdf_plot_with_simplified(df: pl.DataFrame, attr: str) -> p9.ggplot:
                 linetype="key",
             ),
         )
+        + p9.ggtitle(title)
         + p9.xlab(attr)
         + p9.ylab("cumulative probability")
         + p9.stat_ecdf()
@@ -115,19 +129,21 @@ def ecdf_plot_with_simplified(df: pl.DataFrame, attr: str) -> p9.ggplot:
 
 
 def boxplot(
-    df: pl.DataFrame, attr: str, grouping: str, outlier_shape: str, ylogscale: bool
+    df: pl.DataFrame, attr: str, grouping: str, outlier_shape: str, ylogscale: bool, title: str = ""
 ) -> p9.ggplot:
     """Create a box plot for the specified attribute for each selected planner."""
 
     if grouping:
-        plot = p9.ggplot(
-            df, p9.aes(x="planner", y=attr, fill=grouping)
-        ) + p9.geom_boxplot(
-            position=p9.position_dodge2(width=0.8), outlier_shape=outlier_shape
+        plot = (
+            p9.ggplot(df, p9.aes(x="planner", y=attr, fill=grouping))
+            + p9.ggtitle(title)
+            + p9.geom_boxplot(position=p9.position_dodge2(width=0.8), outlier_shape=outlier_shape)
         )
     else:
-        plot = p9.ggplot(df, p9.aes(x="planner", y=attr)) + p9.geom_boxplot(
-            color="#3073ba", fill="#99c9eb", outlier_shape=outlier_shape
+        plot = (
+            p9.ggplot(df, p9.aes(x="planner", y=attr))
+            + p9.ggtitle(title)
+            + p9.geom_boxplot(color="#3073ba", fill="#99c9eb", outlier_shape=outlier_shape)
         )
     if ylogscale:
         return plot + p9.scale_y_log10()
@@ -136,12 +152,13 @@ def boxplot(
 
 
 def boxplot_with_simplified(
-    df: pl.DataFrame, attr: str, outlier_shape: str, ylogscale: bool
+    df: pl.DataFrame, attr: str, outlier_shape: str, ylogscale: bool, title: str = ""
 ) -> p9.ggplot:
     """Create a box plot for the specified attribute and the value of the attribute after path
     simplification for each selected planner."""
     plot = (
         p9.ggplot(df, p9.aes(x="planner", y="value", color="key", fill="key"))
+        + p9.ggtitle(title)
         + p9.ylab(attr)
         + p9.geom_boxplot(outlier_shape=outlier_shape)
         + p9.scale_fill_manual(
@@ -164,24 +181,24 @@ def boxplot_with_simplified(
 
 @module.server
 def performance_server(
-    input: Inputs, output: Outputs, session: Session, raw_data: reactive.Value
+    inputs: Inputs, output: Outputs, session: Session, raw_data: reactive.Value
 ):
     @reactive.calc
     def exp_data() -> pl.DataFrame:
         """Return data for the selected experiment"""
         req(not raw_data()["runs"].is_empty())
-        return raw_data()["runs"].filter(pl.col("experiment") == input.problem())
+        return raw_data()["runs"].filter(pl.col("experiment") == inputs.problem())
 
     @reactive.calc
     def data() -> DataTuple:
         """Return data for the selected OMPL version, the selected planners, and selected experiment
         parameters (if present)"""
-        param_values = problem_parameter_values(raw_data()["parameters"], input)
+        param_values = problem_parameter_values(raw_data()["parameters"], inputs)
         grouping = problem_parameter_groups(param_values)
         df = problem_parameter_filter(
             exp_data().filter(
-                (pl.col("version") == input.version())
-                & (pl.col("planner").is_in(input.planners()))
+                (pl.col("version") == inputs.version())
+                & (pl.col("planner").is_in(inputs.planners()))
             ),
             param_values,
         )
@@ -205,8 +222,8 @@ def performance_server(
         req(not raw_data()["experiments"].is_empty())
         return problem_parameter_widgets(
             raw_data()["experiments"].filter(
-                (pl.col("experiment") == input.problem())
-                & (pl.col("version") == input.version())
+                (pl.col("experiment") == inputs.problem())
+                & (pl.col("version") == inputs.version())
             ),
             raw_data()["parameters"],
         )
@@ -216,6 +233,11 @@ def performance_server(
     def attribute_ui() -> ui.Tag:
         req(raw_data()["attributes"])
         return attribute_widget(raw_data()["attributes"])
+
+    @output
+    @render.ui
+    def title_ui() -> ui.Tag:
+        return title_widget("")
 
     @output
     @render.ui
@@ -229,17 +251,17 @@ def performance_server(
 
     @reactive.calc
     def plot_object() -> p9.ggplot:
-        attr = input.attribute()
+        attr = inputs.attribute()
         # use bar charts for enum types
         enums = raw_data()["enums"].filter(pl.col("name") == attr)
         grouping = data().grouping
         if len(enums) > 0:
-            return enums_plot(data().df, enums, grouping)
+            return enums_plot(data().df, enums, grouping, inputs.title())
 
-        outlier_shape = "" if input.hide_outliers() else "o"
+        outlier_shape = "" if inputs.hide_outliers() else "o"
         simplified_attr = "simplified " + attr
         include_simplified_attr = (
-            input.show_simplified() and simplified_attr in raw_data()["attributes"]
+            inputs.show_simplified() and simplified_attr in raw_data()["attributes"]
         )
 
         if include_simplified_attr:
@@ -253,15 +275,15 @@ def performance_server(
                 )
                 .with_columns(pl.col("key").cast(pl.Categorical))
             )
-            if input.show_as_cdf():
-                return ecdf_plot_with_simplified(df, attr)
-            return boxplot_with_simplified(df, attr, outlier_shape, input.y_log_scale())
+            if inputs.show_as_cdf():
+                return ecdf_plot_with_simplified(df, attr, inputs.title())
+            return boxplot_with_simplified(df, attr, outlier_shape, inputs.y_log_scale(), inputs.title())
         else:
             df = data().df
-            if input.show_as_cdf():
-                return ecdf_plot(df, attr, grouping)
+            if inputs.show_as_cdf():
+                return ecdf_plot(df, attr, grouping, inputs.title())
 
-            return boxplot(df, attr, grouping, outlier_shape, input.y_log_scale())
+            return boxplot(df, attr, grouping, outlier_shape, inputs.y_log_scale(), inputs.title())
 
     @output
     @render.plot
@@ -283,7 +305,7 @@ def performance_server(
     @output
     @render.data_frame
     def missing_data_table():
-        req(input.attribute)
+        req(inputs.attribute)
         grouping = data().grouping
         if grouping:
             grouping = ["planner", grouping]
@@ -291,7 +313,7 @@ def performance_server(
             grouping = ["planner"]
         return (
             data()
-            .df.with_columns(pl.col(input.attribute()).is_null().alias("missing"))
+            .df.with_columns(pl.col(inputs.attribute()).is_null().alias("missing"))
             .group_by(grouping)
             .agg(pl.col("missing").sum(), pl.len().alias("total"))
             .sort(grouping)
